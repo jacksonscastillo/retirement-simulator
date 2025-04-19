@@ -221,22 +221,18 @@ function calculate() {
   const insuranceWeight = 1 - investmentWeight;
   const n = 12;
   const startAge = 25;
-  const liRate = 0.055 / n;
+  const liRate = 0.053 / n;
   const investRate = r / n;
   const PMT = freq === "monthly" ? C : C / 12;
   const contribMonths = contribYears * n;
   const withdrawalPerMonth = W / 12;
 
   let investBal = P * investmentWeight;
-  let liGrowthRate = liRate;
-if (age - startAge < 10) {
-  liGrowthRate = liRate * ((age - startAge) / 10);
-}
-liBal = liBal * (1 + liGrowthRate) + contrib * insuranceWeight;
+  let liBal = P * insuranceWeight;
   let baseBal = P;
 
   let totalContribStrategy = P;
-let totalContribBase = P;
+  let totalContribBase = P;
 
   let investData = [], baseData = [], labels = [];
   let strategyDepletion = null, baselineDepletion = null;
@@ -252,9 +248,15 @@ let totalContribBase = P;
 
     const contrib = isContributing ? PMT : 0;
 
+    // Ramp-up logic: simulate 10-year break-even curve
+    let liGrowthRate = liRate;
+    if (age - startAge < 10) {
+      liGrowthRate = liRate * ((age - startAge) / 10);
+    }
+
     if (!inRetire) {
       investBal = investBal * (1 + investRate) + contrib * investmentWeight;
-      liBal = liBal * (1 + liRate) + contrib * insuranceWeight;
+      liBal = liBal * (1 + liGrowthRate) + contrib * insuranceWeight;
       baseBal = baseBal * (1 + investRate) + contrib;
       totalContribStrategy += contrib;
       totalContribBase += contrib;
@@ -262,7 +264,6 @@ let totalContribBase = P;
       let actualW = withdrawalPerMonth;
       let baseW = withdrawalPerMonth;
 
-      // Apply tax impact
       if (accountType === "traditional" || accountType === "taxable") {
         actualW /= (1 - taxRate);
         baseW /= (1 - taxRate);
@@ -336,7 +337,7 @@ let totalContribBase = P;
       ? `${Math.abs(percentDiff)}% ${diff >= 0 ? "higher" : "lower"} than baseline`
       : "N/A";
 
-  if (chart) chart?.destroy();
+  if (chart) chart.destroy();
   const ctx = document.getElementById("chart").getContext("2d");
 
   chart = new Chart(ctx, {
@@ -375,5 +376,3 @@ let totalContribBase = P;
   });
 }
 </script>
-</body>
-</html>
