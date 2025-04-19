@@ -228,7 +228,11 @@ function calculate() {
   const withdrawalPerMonth = W / 12;
 
   let investBal = P * investmentWeight;
-  let liBal = P * insuranceWeight;
+  let liGrowthRate = liRate;
+if (age - startAge < 10) {
+  liGrowthRate = liRate * ((age - startAge) / 10);
+}
+liBal = liBal * (1 + liGrowthRate) + contrib * insuranceWeight;
   let baseBal = P;
 
   let totalContribStrategy = P;
