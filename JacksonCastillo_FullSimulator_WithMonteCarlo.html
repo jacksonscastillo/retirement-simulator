@@ -1,0 +1,272 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jackson Castillo’s Retirement Strategy Simulator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0d0f14;
+      color: #f0f0f0;
+      padding: 40px;
+    }
+    h2 {
+      text-align: center;
+      color: #7cd6ff;
+      margin-bottom: 20px;
+    }
+    input, select {
+      width: 260px;
+      padding: 10px;
+      margin: 10px;
+      font-size: 15px;
+      background: #1e2a38;
+      border: 1px solid #3c506a;
+      border-radius: 6px;
+      color: #fff;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      margin: 20px;
+      background: linear-gradient(to right, #4e9eff, #6f85ff);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+    .results {
+      margin-top: 30px;
+      font-size: 16px;
+    }
+    canvas {
+      margin-top: 40px;
+      background: #1c1f28;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Jackson Castillo’s Retirement Strategy Simulator</h2>
+
+  <label>Initial Investment ($):</label><br>
+  <input type="number" id="principal" value="10000"><br>
+
+  <label>Monthly Contribution ($):</label><br>
+  <input type="number" id="contribution" value="500"><br>
+
+  <label>Expected Annual Return (%):</label><br>
+  <input type="number" id="rate" value="7"><br>
+
+  <label>Years Contributing (Before Retirement):</label><br>
+  <input type="number" id="yearsInvested" value="30"><br>
+
+  <label>Years in Retirement:</label><br>
+  <input type="number" id="retirementYears" value="30"><br>
+
+  <label>Annual Withdrawal During Retirement ($):</label><br>
+  <input type="number" id="retirementWithdrawal" value="60000"><br>
+
+  <label>Strategy Split (% Investment vs. Life Insurance):</label><br>
+  <select id="strategy">
+    <option value="100">100 / 0</option>
+    <option value="80">80 / 20</option>
+    <option value="70">70 / 30</option>
+    <option value="50">50 / 50</option>
+  </select><br>
+
+  <label>Account Type:</label><br>
+  <select id="accountType">
+    <option value="roth">Roth (Tax-Free)</option>
+    <option value="traditional">Traditional (Taxed on Withdrawal + RMDs)</option>
+    <option value="taxable">Taxable (Capital Gains)</option>
+  </select><br>
+
+  <label><input type="checkbox" id="runMonteCarlo" /> Run Monte Carlo stress test (500 trials)</label><br>
+
+  <button onclick="runSimulation()">Run Simulation</button>
+
+  <div class="results" id="output"></div>
+  <canvas id="chart" width="900" height="400"></canvas>
+  <canvas id="mcChart" width="900" height="300" style="display:none;"></canvas>
+
+  <script>
+    // MAIN SIMULATION FUNCTION
+    function runSimulation() {
+      const P = parseFloat(document.getElementById("principal").value);
+      const C = parseFloat(document.getElementById("contribution").value);
+      const r = parseFloat(document.getElementById("rate").value) / 100;
+      const contribYears = parseInt(document.getElementById("yearsInvested").value);
+      const retirementYears = parseInt(document.getElementById("retirementYears").value);
+      const withdrawal = parseFloat(document.getElementById("retirementWithdrawal").value);
+      const strategySplit = parseInt(document.getElementById("strategy").value) / 100;
+      const accountType = document.getElementById("accountType").value;
+
+      const months = (contribYears + retirementYears) * 12;
+      const monthlyRate = r / 12;
+      const monthlyWithdrawal = withdrawal / 12;
+      const rampYears = 10;
+
+      let investBal = P * strategySplit;
+      let insBal = P * (1 - strategySplit);
+      let data = [], labels = [];
+
+      let totalContrib = P;
+      let totalWithdrawn = 0;
+      let age = 30;
+      let startYear = 2001;
+      let rmdStartAge = 73;
+      const downYears = [2001, 2002, 2008, 2009, 2011, 2015, 2018, 2020, 2022];
+
+      for (let i = 1; i <= months; i++) {
+        const year = startYear + Math.floor(i / 12);
+        const isContribPhase = i <= contribYears * 12;
+        const isDownYear = downYears.includes(year);
+        const liGrowthRate = (i <= rampYears * 12) ? (0.055 / 12) * (i / (rampYears * 12)) : 0.055 / 12;
+
+        if (isContribPhase) {
+          investBal = investBal * (1 + monthlyRate) + C * strategySplit;
+          insBal = insBal * (1 + liGrowthRate) + C * (1 - strategySplit);
+          totalContrib += C;
+        } else {
+          investBal *= (1 + monthlyRate);
+          insBal *= (1 + liGrowthRate);
+
+          let withdrawalFromInvest = 0;
+          let withdrawalFromIns = 0;
+
+          if (accountType === "traditional" && age >= rmdStartAge && i % 12 === 1) {
+            let rmd = investBal / (100 - age);
+            withdrawalFromInvest = Math.max(rmd, monthlyWithdrawal);
+          } else {
+            withdrawalFromInvest = isDownYear && insBal >= monthlyWithdrawal ? 0 : monthlyWithdrawal;
+            withdrawalFromIns = monthlyWithdrawal - withdrawalFromInvest;
+          }
+
+          if (withdrawalFromInvest > investBal) {
+            withdrawalFromIns += withdrawalFromInvest - investBal;
+            withdrawalFromInvest = investBal;
+          }
+          if (withdrawalFromIns > insBal) {
+            withdrawalFromInvest += withdrawalFromIns - insBal;
+            withdrawalFromIns = insBal;
+          }
+
+          investBal -= withdrawalFromInvest;
+          insBal -= withdrawalFromIns;
+          totalWithdrawn += (withdrawalFromInvest + withdrawalFromIns);
+        }
+
+        if (i % 12 === 0) {
+          data.push(investBal + insBal);
+          labels.push(`Year ${i / 12}`);
+          age++;
+        }
+      }
+
+      const finalValue = investBal + insBal;
+      const netInterest = finalValue + totalWithdrawn - totalContrib;
+      const returnPct = ((netInterest / totalContrib) * 100).toFixed(1);
+
+      document.getElementById("output").innerHTML = `
+        <p><strong>Final Value:</strong> $${finalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+        <p><strong>Total Contributions:</strong> $${totalContrib.toLocaleString()}</p>
+        <p><strong>Total Withdrawn:</strong> $${totalWithdrawn.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+        <p><strong>Net Interest Earned:</strong> $${netInterest.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+        <p><strong>Total Return:</strong> ${returnPct}%</p>
+      `;
+
+      if (window.chart) window.chart.destroy();
+      const ctx = document.getElementById("chart").getContext("2d");
+      window.chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "Total Portfolio Value",
+            data: data,
+            borderColor: "#4e9eff",
+            borderWidth: 2,
+            fill: false,
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { title: { display: true, text: "Year" }},
+            y: {
+              title: { display: true, text: "Portfolio Value ($)" },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+
+      if (document.getElementById("runMonteCarlo").checked) {
+        runMonteCarloSim(finalValue);
+      } else {
+        document.getElementById("mcChart").style.display = "none";
+      }
+    }
+
+    function runMonteCarloSim(startValue) {
+      const trials = 500;
+      const years = 30;
+      const mean = parseFloat(document.getElementById("rate").value) / 100;
+      const stdev = 0.15;
+      let simulations = [];
+
+      for (let i = 0; i < trials; i++) {
+        let values = [startValue];
+        for (let y = 1; y <= years; y++) {
+          let randReturn = mean + stdev * randn_bm();
+          values.push(values[y - 1] * (1 + randReturn));
+        }
+        simulations.push(values);
+      }
+
+      let perc10 = [], median = [], perc90 = [];
+      for (let y = 0; y <= years; y++) {
+        let valuesAtYear = simulations.map(sim => sim[y]).sort((a, b) => a - b);
+        perc10.push(valuesAtYear[Math.floor(trials * 0.10)]);
+        median.push(valuesAtYear[Math.floor(trials * 0.50)]);
+        perc90.push(valuesAtYear[Math.floor(trials * 0.90)]);
+      }
+
+      const ctx = document.getElementById("mcChart").getContext("2d");
+      document.getElementById("mcChart").style.display = "block";
+      if (window.mcChart) window.mcChart.destroy();
+      window.mcChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: Array.from({length: years + 1}, (_, i) => `Year ${i}`),
+          datasets: [
+            { label: "10th Percentile", data: perc10, borderColor: "rgba(255, 100, 100, 0.4)", fill: "+1", tension: 0.1 },
+            { label: "Median", data: median, borderColor: "#ffa94d", borderWidth: 2, fill: false, tension: 0.1 },
+            { label: "90th Percentile", data: perc90, borderColor: "rgba(100, 255, 100, 0.4)", fill: false, tension: 0.1 }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { labels: { color: "#ddd" } }},
+          scales: {
+            x: { title: { display: true, text: "Years into Retirement" }, ticks: { color: "#aaa" }, grid: { color: "#222" }},
+            y: { title: { display: true, text: "Portfolio Value ($)" }, ticks: { color: "#aaa" }, grid: { color: "#222" }}
+          }
+        }
+      });
+    }
+
+    function randn_bm() {
+      let u = 0, v = 0;
+      while(u === 0) u = Math.random();
+      while(v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+  </script>
+</body>
+</html>
