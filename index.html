@@ -89,7 +89,8 @@
 
   <div class="results" id="output"></div>
   <canvas id="chart" width="900" height="400"></canvas>
-    <script>
+
+  <script>
     function runSimulation() {
       const P = parseFloat(document.getElementById("principal").value);
       const C = parseFloat(document.getElementById("contribution").value);
@@ -118,10 +119,8 @@
 
       for (let i = 1; i <= months; i++) {
         const year = startYear + Math.floor(i / 12);
-        const month = i % 12;
         const isContribPhase = i <= contribYears * 12;
         const isDownYear = downYears.includes(year);
-        const isRetired = !isContribPhase;
         const liGrowthRate = (i <= rampYears * 12)
           ? (0.055 / 12) * (i / (rampYears * 12))
           : 0.055 / 12;
@@ -137,7 +136,7 @@
           let withdrawalFromInvest = 0;
           let withdrawalFromIns = 0;
 
-          if (accountType === "traditional" && age >= rmdStartAge && month === 1) {
+          if (accountType === "traditional" && age >= rmdStartAge && i % 12 === 1) {
             let rmd = investBal / (100 - age);
             withdrawalFromInvest = Math.max(rmd, monthlyWithdrawal);
           } else {
@@ -160,9 +159,10 @@
           totalWithdrawn += (withdrawalFromInvest + withdrawalFromIns);
         }
 
-        if (month === 0) {
+        if (i % 12 === 0) {
           data.push(investBal + insBal);
-          labels.push(`Age ${age++} (${year})`);
+          labels.push(`Year ${i / 12}`);
+          age++;
         }
       }
 
@@ -196,7 +196,7 @@
         options: {
           responsive: true,
           scales: {
-            x: { title: { display: true, text: "Age" }},
+            x: { title: { display: true, text: "Year" }},
             y: {
               title: { display: true, text: "Portfolio Value ($)" },
               beginAtZero: true
@@ -206,8 +206,69 @@
       });
     }
   </script>
-    <!-- Monte Carlo placeholder (optional enhancement) -->
-  <!-- To implement: runMonteCarloSim() and chart to show percentile bands -->
-
 </body>
 </html>
+<label><input type="checkbox" id="runMonteCarlo" /> Run Monte Carlo stress test (500 trials)</label>
+<canvas id="mcChart" width="900" height="300" style="display:none;"></canvas>
+function runMonteCarloSim(startValue) {
+  const trials = 500;
+  const years = 30;
+  const mean = parseFloat(document.getElementById("rate").value) / 100;
+  const stdev = 0.15; // You can adjust this volatility assumption
+
+  let results = [];
+
+  for (let i = 0; i < trials; i++) {
+    let value = startValue;
+    for (let y = 0; y < years; y++) {
+      let randReturn = mean + stdev * randn_bm();
+      value *= 1 + randReturn;
+    }
+    results.push(value);
+  }
+
+  results.sort((a, b) => a - b);
+
+  const ctx = document.getElementById("mcChart").getContext("2d");
+  document.getElementById("mcChart").style.display = "block";
+
+  if (window.mcChart) window.mcChart.destroy();
+  window.mcChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: results.map((_, i) => i + 1),
+      datasets: [{
+        label: "Monte Carlo 500 Trials (Final Value)",
+        data: results,
+        borderColor: "#ffa94d",
+        borderWidth: 2,
+        tension: 0.1,
+        fill: true
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: "#ddd" } }
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          title: { display: true, text: "Ending Portfolio Value ($)" },
+          ticks: { color: "#aaa" },
+          grid: { color: "#222" }
+        }
+      }
+    }
+  });
+}
+    function randn_bm() {
+  let u = 0, v = 0;
+  while(u === 0) u = Math.random();
+  while(v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+    if (document.getElementById("runMonteCarlo").checked) {
+  runMonteCarloSim(investBal + insBal);
+} else {
+  document.getElementById("mcChart").style.display = "none";
+}
