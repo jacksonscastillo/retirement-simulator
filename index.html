@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Jackson Castillo – Retirement Strategy Simulator</title>
+  <title>Jackson Castillo – Full Retirement Simulator</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
@@ -95,263 +96,138 @@
       color: #ddd;
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
     }
-    .compare-bar {
-      margin-top: 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 16px;
-      background: #1b1b1b;
-      border-radius: 14px;
-      padding: 14px 20px;
-      box-shadow: inset 0 0 0 2px #333;
-    }
-    .highlight {
-      color: #6fe0b4;
-      font-weight: 600;
-    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Jackson Castillo’s Retirement Strategy Simulator</h2>
+<div class="container">
+  <h2>Jackson Castillo’s Retirement Strategy Simulator</h2>
 
-    <label>Initial Investment ($)</label>
-    <input type="number" id="principal" placeholder="100000" />
+  <label>Starting Balance ($)</label>
+  <input type="number" id="principal" value="10000" />
 
-    <label>Annual Contribution ($)</label>
-    <input type="number" id="contribution" placeholder="10000" />
+  <label>Monthly Contribution ($)</label>
+  <input type="number" id="contrib" value="500" />
 
-    <label>Contribution Frequency</label>
-    <select id="frequency">
-      <option value="monthly">Monthly</option>
-      <option value="annually">Annually</option>
-    </select>
+  <label>Start Age</label>
+  <input type="number" id="startAge" value="25" />
 
-    <label>Years Contributing Before Retirement</label>
-    <input type="number" id="contribYears" placeholder="40" />
+  <label>Retirement Age</label>
+  <input type="number" id="retireAge" value="65" />
 
-    <label>Annual Withdrawal in Retirement ($)</label>
-    <input type="number" id="withdrawal" placeholder="60000" />
+  <label>End Age / Life Expectancy</label>
+  <input type="number" id="endAge" value="95" />
 
-    <label>Retirement Age (default: 65)</label>
-    <input type="number" id="retireAge" placeholder="65" />
+  <label>Expected Investment Return (%)</label>
+  <input type="number" id="rate" value="7" />
 
-    <label>End Age / Life Expectancy (default: 95)</label>
-    <input type="number" id="endAge" placeholder="95" />
+  <label>Portfolio Strategy</label>
+  <select id="strategy">
+    <option value="100">100% Investment Only</option>
+    <option value="80">80% Investment / 20% Life Insurance</option>
+    <option value="70">70% Investment / 30% Life Insurance</option>
+  </select>
 
-    <label>Account Type</label>
-    <select id="accountType">
-      <option value="roth">Roth (tax-free)</option>
-      <option value="traditional">Traditional (taxable + RMDs)</option>
-      <option value="taxable">Taxable (subject to cap gains)</option>
-    </select>
+  <label>Account Type</label>
+  <select id="accountType">
+    <option value="roth">Roth (Tax-Free)</option>
+    <option value="traditional">Traditional (Taxed on Withdrawal)</option>
+    <option value="taxable">Taxable (Capital Gains)</option>
+  </select>
 
-    <label>Portfolio Strategy</label>
-    <select id="strategy">
-      <option value="100">100% Investment Only</option>
-      <option value="80">80% Investment / 20% Life Insurance</option>
-      <option value="70">70% Investment / 30% Life Insurance</option>
-    </select>
+  <label>Tax Rate on Withdrawals (%)</label>
+  <input type="number" id="withdrawalTax" value="25" />
 
-    <label>Expected Investment Return (%)</label>
-    <input type="number" id="rate" step="0.01" placeholder="7" />
+  <label>Capital Gains Tax Rate (%)</label>
+  <input type="number" id="capGainsTax" value="15" />
 
-    <label>Tax Rate on Withdrawals (%)</label>
-    <input type="number" id="taxRate" placeholder="25" />
+  <button onclick="runSimulation()">Run Simulation</button>
 
-    <label><input type="checkbox" id="showLifeExp" /> Show value at life expectancy</label>
-    <label><input type="checkbox" id="runMonteCarlo" /> Run Monte Carlo stress test (500 trials)</label>
+  <div class="results" id="output"></div>
+  <canvas id="chart" width="400" height="200"></canvas>
 
-    <button onclick="calculate()">Run Simulation</button>
+  <div class="info-panel">
+    <strong>Strategy Overview:</strong><br>
+    Monthly compounding of investments and contributions. Life insurance ramps to 5.5% over 10 years. Contributions stop at retirement. Roth grows tax-free. Traditional is taxed on withdrawal. Taxable accounts pay capital gains on growth. During market downturns (2001–2025), withdrawals are buffered from life insurance before drawing investment accounts.
+  </div>
+</div>
 
-    <div class="results" id="output"></div>
-    <div class="compare-bar" id="comparisonBar" style="display:none;">
-      Strategy Advantage Over Baseline: <span class="highlight" id="deltaValue"></span>
-    </div>
-
-    <canvas id="chart" width="400" height="200"></canvas>
-    <canvas id="mcChart" width="400" height="200" style="display:none;"></canvas>
-
-    <div class="info-panel">
-      <strong>Strategy Overview:</strong><br>
-      This simulator reflects tax-smart retirement income planning. During market downturns, income is drawn from whole life insurance cash value (modeled with a realistic 10-year break-even ramp and 5.3% growth after year 10). Account types reflect Roth (tax-free), Traditional (taxable with RMDs), and Taxable (capital gains). Final strategy and baseline values reflect your portfolio at retirement. Toggle options allow visibility into projected end-of-life values and Monte Carlo stress-tested outcomes.
-      <script>
-let chart, mcChart;
-function calculate() {
-  const principal = parseFloat(document.getElementById("principal").value) || 0;
-  const annualContribution = parseFloat(document.getElementById("contribution").value) || 0;
-  const contribYears = parseInt(document.getElementById("contribYears").value) || 40;
-  const annualWithdrawal = parseFloat(document.getElementById("withdrawal").value) || 0;
-  const retireAge = parseInt(document.getElementById("retireAge").value) || 65;
-  const endAge = parseInt(document.getElementById("endAge").value) || 95;
+<script>
+function runSimulation() {
+  const P = parseFloat(document.getElementById("principal").value);
+  const C = parseFloat(document.getElementById("contrib").value);
+  const r = parseFloat(document.getElementById("rate").value) / 100;
+  const investPct = parseFloat(document.getElementById("strategy").value) / 100;
+  const startAge = parseInt(document.getElementById("startAge").value);
+  const retireAge = parseInt(document.getElementById("retireAge").value);
+  const endAge = parseInt(document.getElementById("endAge").value);
   const accountType = document.getElementById("accountType").value;
-  const strategyPercent = parseInt(document.getElementById("strategy").value) || 100;
-  const growthRate = parseFloat(document.getElementById("rate").value) / 100 || 0.07;
-  const taxRate = parseFloat(document.getElementById("taxRate").value) / 100 || 0.25;
-  const showLifeExp = document.getElementById("showLifeExp").checked;
+  const taxRate = parseFloat(document.getElementById("withdrawalTax").value) / 100;
+  const capGains = parseFloat(document.getElementById("capGainsTax").value) / 100;
 
-  const startAge = 25;
-  const totalYears = endAge - startAge;
+  const months = (endAge - startAge) * 12;
+  const liMaxRate = 0.055;
+  const downYears = [2001, 2002, 2008, 2009, 2011, 2015, 2018, 2020, 2022];
 
-  const investWeight = strategyPercent / 100;
-  const liWeight = 1 - investWeight;
+  let invest = P * investPct;
+  let li = P * (1 - investPct);
+  let totalContrib = P;
+  let values = [], labels = [];
 
-  let investBal = principal * investWeight;
-  let liBal = principal * liWeight;
-  let baseBal = principal;
-
-  let totalContribStrategy = principal;
-  let totalContribBase = principal;
-
-  const investData = [], baseData = [], labels = [];
-  let strategyDepletedAge = null;
-  let baseDepletedAge = null;
-  let valueAtRetirement = 0, baseAtRetirement = 0;
-
-  for (let i = 0; i <= totalYears; i++) {
-    const age = startAge + i;
-    const contributing = age < retireAge && i < contribYears;
+  for (let i = 0; i <= months; i++) {
+    const age = startAge + Math.floor(i / 12);
+    const year = 2000 + Math.floor(i / 12);
+    const isDown = downYears.includes(year);
     const retired = age >= retireAge;
 
-    const contrib = contributing ? annualContribution : 0;
-    const withdrawal = retired ? (accountType === "roth" ? annualWithdrawal : annualWithdrawal / (1 - taxRate)) : 0;
-
-    // Add contributions before growth
-    investBal += contrib * investWeight;
-    liBal += contrib * liWeight;
-    baseBal += contrib;
-    totalContribStrategy += contrib;
-    totalContribBase += contrib;
-
-    // Apply growth
-    investBal *= (1 + growthRate);
-    liBal *= (1 + (age - startAge >= 10 ? 0.053 : 0.053 * ((age - startAge) / 10)));
-    baseBal *= (1 + growthRate);
-
-    // Apply withdrawals
-    if (retired) {
-      if (liBal >= withdrawal) {
-        liBal -= withdrawal;
-      } else {
-        const remainder = withdrawal - liBal;
-        liBal = 0;
-        investBal = Math.max(0, investBal - remainder);
-      }
-
-      baseBal = Math.max(0, baseBal - withdrawal);
+    if (!retired) {
+      invest += C * investPct;
+      li += C * (1 - investPct);
+      totalContrib += C;
     }
 
-    investData.push(investBal + liBal);
-    baseData.push(baseBal);
+    const mRate = r / 12;
+    invest *= (1 + mRate);
+    const liRamp = Math.min(i / 120, 1);
+    li *= (1 + (liRamp * liMaxRate) / 12);
+
+    if (retired && isDown && li >= C) {
+      li -= C;
+    }
+
+    values.push(invest + li);
     labels.push(`Age ${age}`);
-
-    if (investBal + liBal <= 0 && !strategyDepletedAge) strategyDepletedAge = age;
-    if (baseBal <= 0 && !baseDepletedAge) baseDepletedAge = age;
-
-    if (age === retireAge) {
-      valueAtRetirement = investBal + liBal;
-      baseAtRetirement = baseBal;
-    }
   }
 
-  const finalStrategy = showLifeExp ? investData[investData.length - 1] : valueAtRetirement;
-  const finalBaseline = showLifeExp ? baseData[baseData.length - 1] : baseAtRetirement;
-  const delta = finalStrategy - finalBaseline;
-  const totalGrowthStrategy = finalStrategy - totalContribStrategy;
-  const totalGrowthBase = finalBaseline - totalContribBase;
+  let finalValue = invest + li;
+  if (accountType === "traditional") {
+    finalValue -= (finalValue - totalContrib) * taxRate;
+  } else if (accountType === "taxable") {
+    const gain = finalValue - totalContrib;
+    if (gain > 0) finalValue -= gain * capGains;
+  }
 
-  const strategyReturnPercent = ((totalGrowthStrategy / totalContribStrategy) * 100).toFixed(1);
-const baseReturnPercent = ((totalGrowthBase / totalContribBase) * 100).toFixed(1);
+  const interest = finalValue - totalContrib;
+  const returnPct = ((interest / totalContrib) * 100).toFixed(1);
 
-document.getElementById("output").innerHTML = `
-  <strong>Final Strategy Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalStrategy.toLocaleString()}<br>
-  <strong>Total Contributions:</strong> $${totalContribStrategy.toLocaleString()}<br>
-  <strong>Total Interest Earned:</strong> $${totalGrowthStrategy.toLocaleString()}<br>
-  <strong>Total Return:</strong> ${strategyReturnPercent}%<br><br>
+  document.getElementById("output").innerHTML = `
+    <p><strong>Final Value:</strong> $${finalValue.toLocaleString()}</p>
+    <p><strong>Total Contributions:</strong> $${totalContrib.toLocaleString()}</p>
+    <p><strong>Interest Earned:</strong> $${interest.toLocaleString()}</p>
+    <p><strong>Total Return:</strong> ${returnPct}%</p>
+  `;
 
-  <strong>Baseline Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalBaseline.toLocaleString()}<br>
-  <strong>Total Contributions:</strong> $${totalContribBase.toLocaleString()}<br>
-  <strong>Total Interest Earned:</strong> $${totalGrowthBase.toLocaleString()}<br>
-  <strong>Total Return:</strong> ${baseReturnPercent}%<br><br>
-
-  ${strategyDepletedAge ? `<span class="red"><strong>Strategy runs out of money at age ${strategyDepletedAge}</strong></span><br>` : ""}
-  ${baseDepletedAge ? `<span class="red"><strong>Baseline runs out of money at age ${baseDepletedAge}</strong></span><br>` : ""}
-`;
-
-  if (chart) chart.destroy();
+  if (window.chart) window.chart.destroy();
   const ctx = document.getElementById("chart").getContext("2d");
-  chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: "Strategy (Investment + Insurance)",
-          data: investData,
-          borderColor: "#64e291",
-          borderWidth: 2,
-          fill: false
-        },
-        {
-          label: "Baseline (Investment Only)",
-          data: baseData,
-          borderColor: "#4e9eff",
-          borderWidth: 2,
-          borderDash: [5, 5],
-          fill: false
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        x: {
-          title: { display: true, text: 'Age' },
-          ticks: { color: '#ccc' }
-        },
-        y: {
-          title: { display: true, text: 'Portfolio Value ($)' },
-          ticks: { color: '#ccc' }
-        }
-      }
-    }
-  });
-}
-       function runMonteCarloSim(startValue) {
-  const trials = 500;
-  const years = 30;
-  const mean = 0.07;
-  const stdev = 0.15;
-
-  let results = [];
-
-  for (let i = 0; i < trials; i++) {
-    let value = startValue;
-    for (let y = 0; y < years; y++) {
-      let randomReturn = mean + stdev * randn_bm();
-      value *= 1 + randomReturn;
-    }
-    results.push(value);
-  }
-
-  results.sort((a, b) => a - b);
-
-  const ctx = document.getElementById("mcChart").getContext("2d");
-  document.getElementById("mcChart").style.display = "block";
-
-  if (mcChart) mcChart.destroy();
-  mcChart = new Chart(ctx, {
+  window.chart = new Chart(ctx, {
     type: "line",
     data: {
-      labels: results.map((_, i) => i + 1),
+      labels: labels,
       datasets: [{
-        label: "Monte Carlo 500 Trials",
-        data: results,
-        borderColor: "#ffa94d",
+        label: "Portfolio Value",
+        data: values,
+        borderColor: "#64e291",
         borderWidth: 2,
-        tension: 0.1,
-        fill: true
+        fill: false
       }]
     },
     options: {
@@ -359,22 +235,12 @@ document.getElementById("output").innerHTML = `
         legend: { labels: { color: "#ddd" } }
       },
       scales: {
-        x: { display: false },
+        x: { ticks: { color: "#aaa" }, grid: { color: "#222" }},
         y: { ticks: { color: "#aaa" }, grid: { color: "#222" }}
       }
     }
   });
 }
-
-// Random Gaussian for normal distribution
-function randn_bm() {
-  let u = 0, v = 0;
-  while(u === 0) u = Math.random();
-  while(v === 0) v = Math.random();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
 </script>
-</div>
 </body>
-</html> 
-    </div>
+</html>
