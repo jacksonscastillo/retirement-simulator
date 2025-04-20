@@ -178,7 +178,6 @@
       This simulator reflects tax-smart retirement income planning. During market downturns, income is drawn from whole life insurance cash value (modeled with a realistic 10-year break-even ramp and 5.3% growth after year 10). Account types reflect Roth (tax-free), Traditional (taxable with RMDs), and Taxable (capital gains). Final strategy and baseline values reflect your portfolio at retirement. Toggle options allow visibility into projected end-of-life values and Monte Carlo stress-tested outcomes.
       <script>
 let chart, mcChart;
-
 function calculate() {
   const P = parseFloat(document.getElementById("principal").value);
   const C = parseFloat(document.getElementById("contribution").value);
@@ -214,7 +213,6 @@ function calculate() {
   let investData = [], baseData = [], labels = [];
   let strategyDepletion = null, baselineDepletion = null;
   let strategyValueAtRetirement = 0, baseValueAtRetirement = 0;
-  let strategyValueAtLifeExp = 0, baseValueAtLifeExp = 0;
 
   const downYears = [2001, 2002, 2008, 2009, 2011, 2015, 2018, 2020, 2022];
 
@@ -280,15 +278,15 @@ function calculate() {
       strategyValueAtRetirement = investBal + liBal;
       baseValueAtRetirement = baseBal;
     }
-    if (age === endAge && month === 11) {
-      strategyValueAtLifeExp = investBal + liBal;
-      baseValueAtLifeExp = baseBal;
-    }
 
     investData.push(investBal + liBal);
     baseData.push(baseBal);
     labels.push(`Age ${age} | ${year}`);
   }
+
+  // Fix: always use the final recorded values from the arrays
+  const strategyValueAtLifeExp = investData[investData.length - 1];
+  const baseValueAtLifeExp = baseData[baseData.length - 1];
 
   const finalStrategy = strategyValueAtRetirement;
   const finalBaseline = baseValueAtRetirement;
