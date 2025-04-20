@@ -201,6 +201,9 @@ function calculate() {
   let liBal = principal * liWeight;
   let baseBal = principal;
 
+  let totalContribStrategy = principal;
+  let totalContribBase = principal;
+
   const investData = [], baseData = [], labels = [];
   let strategyDepletedAge = null;
   let baseDepletedAge = null;
@@ -214,10 +217,12 @@ function calculate() {
     const contrib = contributing ? annualContribution : 0;
     const withdrawal = retired ? (accountType === "roth" ? annualWithdrawal : annualWithdrawal / (1 - taxRate)) : 0;
 
-    // Add contributions
+    // Add contributions before growth
     investBal += contrib * investWeight;
     liBal += contrib * liWeight;
     baseBal += contrib;
+    totalContribStrategy += contrib;
+    totalContribBase += contrib;
 
     // Apply growth
     investBal *= (1 + growthRate);
@@ -253,16 +258,22 @@ function calculate() {
   const finalStrategy = showLifeExp ? investData[investData.length - 1] : valueAtRetirement;
   const finalBaseline = showLifeExp ? baseData[baseData.length - 1] : baseAtRetirement;
   const delta = finalStrategy - finalBaseline;
+  const totalGrowthStrategy = finalStrategy - totalContribStrategy;
+  const totalGrowthBase = finalBaseline - totalContribBase;
 
   document.getElementById("output").innerHTML = `
-    <strong>Strategy Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalStrategy.toLocaleString()}<br>
+    <strong>Final Strategy Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalStrategy.toLocaleString()}<br>
+    <strong>Total Contributions:</strong> $${totalContribStrategy.toLocaleString()}<br>
+    <strong>Total Interest:</strong> $${totalGrowthStrategy.toLocaleString()}<br><br>
+
     <strong>Baseline Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalBaseline.toLocaleString()}<br>
-    <strong>Difference:</strong> ${delta >= 0 ? "+" : "-"}$${Math.abs(delta).toLocaleString()}
-    ${strategyDepletedAge ? `<br><span class="red">Strategy runs out at age ${strategyDepletedAge}</span>` : ""}
-    ${baseDepletedAge ? `<br><span class="red">Baseline runs out at age ${baseDepletedAge}</span>` : ""}
+    <strong>Total Contributions:</strong> $${totalContribBase.toLocaleString()}<br>
+    <strong>Total Interest:</strong> $${totalGrowthBase.toLocaleString()}<br><br>
+
+    ${strategyDepletedAge ? `<span class="red"><strong>Strategy runs out of money at age ${strategyDepletedAge}</strong></span><br>` : ""}
+    ${baseDepletedAge ? `<span class="red"><strong>Baseline runs out of money at age ${baseDepletedAge}</strong></span><br>` : ""}
   `;
 
-  // Draw chart
   if (chart) chart.destroy();
   const ctx = document.getElementById("chart").getContext("2d");
   chart = new Chart(ctx, {
