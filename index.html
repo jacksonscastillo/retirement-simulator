@@ -110,28 +110,6 @@
       color: #6fe0b4;
       font-weight: 600;
     }
-    .tooltip {
-      display: inline-block;
-      position: relative;
-      cursor: pointer;
-      color: #4e9eff;
-    }
-    .tooltip:hover::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      top: -10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.95);
-      color: #000;
-      font-size: 13px;
-      padding: 8px 12px;
-      border-radius: 6px;
-      white-space: pre-line;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      z-index: 10;
-      width: 250px;
-    }
   </style>
 </head>
 <body>
@@ -162,11 +140,11 @@
     <label>End Age / Life Expectancy (default: 95)</label>
     <input type="number" id="endAge" placeholder="95" />
 
-    <label>IRA Type</label>
+    <label>Account Type</label>
     <select id="accountType">
-      <option value="roth">Roth IRA (tax-free, no RMDs)</option>
-      <option value="traditional">Traditional IRA (taxable + RMDs)</option>
-      <option value="taxable">Taxable Brokerage</option>
+      <option value="roth">Roth (tax-free)</option>
+      <option value="traditional">Traditional (taxable + RMDs)</option>
+      <option value="taxable">Taxable (subject to cap gains)</option>
     </select>
 
     <label>Portfolio Strategy</label>
@@ -182,6 +160,9 @@
     <label>Tax Rate on Withdrawals (%)</label>
     <input type="number" id="taxRate" placeholder="25" />
 
+    <label><input type="checkbox" id="showLifeExp" /> Show value at life expectancy</label>
+    <label><input type="checkbox" id="runMonteCarlo" /> Run Monte Carlo stress test (500 trials)</label>
+
     <button onclick="calculate()">Run Simulation</button>
 
     <div class="results" id="output"></div>
@@ -190,21 +171,15 @@
     </div>
 
     <canvas id="chart" width="400" height="200"></canvas>
+    <canvas id="mcChart" width="400" height="200" style="display:none;"></canvas>
 
     <div class="info-panel">
       <strong>Strategy Overview:</strong><br>
-      This simulator models your financial life starting in 2001. During real historical market downturns  
-      <span class="tooltip" data-tooltip="We use actual market downturn years:\n\n2001, 2002, 2008, 2009, 2011, 2015, 2018, 2020, 2022.\n\nDuring those years, income is drawn from life insurance instead of investment accounts to avoid selling at a loss.">
-        (What’s this?)
-      </span>
-      income is drawn from whole life insurance to protect investments. In other years, IRA withdrawals apply, with RMDs at age 73 if Traditional is selected.<br><br>
-      Whole life insurance is modeled with a fixed 5.5% annual dividend crediting rate, compounded monthly. Cash value grows tax-deferred and is accessible via tax-free loans during retirement.
-    </div>
-<script>
-let chart;
+      This simulator reflects tax-smart retirement income planning. During market downturns, income is drawn from whole life insurance cash value (modeled with a realistic 10-year break-even ramp and 5.3% growth after year 10). Account types reflect Roth (tax-free), Traditional (taxable with RMDs), and Taxable (capital gains). Final strategy and baseline values reflect your portfolio at retirement. Toggle options allow visibility into projected end-of-life values and Monte Carlo stress-tested outcomes.
+      <script>
+let chart, mcChart;
 
 function calculate() {
-  const downYears = [2001, 2002, 2008, 2009, 2011, 2015, 2018, 2020, 2022];
   const P = parseFloat(document.getElementById("principal").value);
   const C = parseFloat(document.getElementById("contribution").value);
   const freq = document.getElementById("frequency").value;
@@ -216,6 +191,8 @@ function calculate() {
   const strategy = parseInt(document.getElementById("strategy").value);
   const r = parseFloat(document.getElementById("rate").value) / 100;
   const taxRate = parseFloat(document.getElementById("taxRate").value) / 100;
+  const showLifeExp = document.getElementById("showLifeExp").checked;
+  const runMonteCarlo = document.getElementById("runMonteCarlo").checked;
 
   const investmentWeight = strategy / 100;
   const insuranceWeight = 1 - investmentWeight;
@@ -236,6 +213,10 @@ function calculate() {
 
   let investData = [], baseData = [], labels = [];
   let strategyDepletion = null, baselineDepletion = null;
+  let strategyValueAtRetirement = 0, baseValueAtRetirement = 0;
+  let strategyValueAtLifeExp = 0, baseValueAtLifeExp = 0;
+
+  const downYears = [2001, 2002, 2008, 2009, 2011, 2015, 2018, 2020, 2022];
 
   for (let i = 0; i < (endAge - startAge) * n; i++) {
     const month = i % 12;
@@ -248,7 +229,6 @@ function calculate() {
 
     const contrib = isContributing ? PMT : 0;
 
-    // Ramp-up logic: simulate 10-year break-even curve
     let liGrowthRate = liRate;
     if (age - startAge < 10) {
       liGrowthRate = liRate * ((age - startAge) / 10);
@@ -264,7 +244,7 @@ function calculate() {
       let actualW = withdrawalPerMonth;
       let baseW = withdrawalPerMonth;
 
-      if (accountType === "traditional" || accountType === "taxable") {
+      if (accountType !== "roth") {
         actualW /= (1 - taxRate);
         baseW /= (1 - taxRate);
       }
@@ -279,11 +259,11 @@ function calculate() {
 
       baseBal = (baseBal - baseW) * (1 + investRate);
 
-      if (rmdRequired && investBal > 0 && accountType === "traditional") {
+      if (rmdRequired && investBal > 0) {
         const rmd = investBal / Math.max(1, endAge - age);
         investBal -= Math.min(rmd, investBal);
       }
-      if (rmdRequired && baseBal > 0 && accountType === "traditional") {
+      if (rmdRequired && baseBal > 0) {
         const baseRmd = baseBal / Math.max(1, endAge - age);
         baseBal -= Math.min(baseRmd, baseBal);
       }
@@ -293,11 +273,16 @@ function calculate() {
     liBal = Math.max(0, liBal);
     baseBal = Math.max(0, baseBal);
 
-    if (!strategyDepletion && investBal + liBal <= 0) {
-      strategyDepletion = { age, year };
+    if (!strategyDepletion && investBal + liBal <= 0) strategyDepletion = { age, year };
+    if (!baselineDepletion && baseBal <= 0) baselineDepletion = { age, year };
+
+    if (age === retireAge && month === 0) {
+      strategyValueAtRetirement = investBal + liBal;
+      baseValueAtRetirement = baseBal;
     }
-    if (!baselineDepletion && baseBal <= 0) {
-      baselineDepletion = { age, year };
+    if (age === endAge && month === 11) {
+      strategyValueAtLifeExp = investBal + liBal;
+      baseValueAtLifeExp = baseBal;
     }
 
     investData.push(investBal + liBal);
@@ -305,23 +290,29 @@ function calculate() {
     labels.push(`Age ${age} | ${year}`);
   }
 
-  const finalStrategy = investData[investData.length - 1];
-  const finalBaseline = baseData[baseData.length - 1];
+  const finalStrategy = strategyValueAtRetirement;
+  const finalBaseline = baseValueAtRetirement;
   const diff = finalStrategy - finalBaseline;
   const percentDiff = finalBaseline > 0 ? ((diff / finalBaseline) * 100).toFixed(1) : "N/A";
-
   const totalGrowthStrategy = finalStrategy - totalContribStrategy;
   const totalGrowthBase = finalBaseline - totalContribBase;
 
   let outputHTML = `
-    <strong>Final Strategy Value:</strong> $${finalStrategy.toLocaleString()}<br>
+    <strong>Final Strategy Value (at Retirement):</strong> $${finalStrategy.toLocaleString()}<br>
     <strong>Total Contributions:</strong> $${totalContribStrategy.toLocaleString()}<br>
     <strong>Total Interest:</strong> $${totalGrowthStrategy.toLocaleString()}<br><br>
 
-    <strong>Baseline Value:</strong> $${finalBaseline.toLocaleString()}<br>
+    <strong>Baseline Value (at Retirement):</strong> $${finalBaseline.toLocaleString()}<br>
     <strong>Total Contributions:</strong> $${totalContribBase.toLocaleString()}<br>
     <strong>Total Interest:</strong> $${totalGrowthBase.toLocaleString()}<br>
   `;
+
+  if (showLifeExp) {
+    outputHTML += `
+      <br><strong>Strategy Value at Life Expectancy:</strong> $${strategyValueAtLifeExp.toLocaleString()}
+      <br><strong>Baseline Value at Life Expectancy:</strong> $${baseValueAtLifeExp.toLocaleString()}
+    `;
+  }
 
   if (strategyDepletion) {
     outputHTML += `<br><span style="color: #ff4d4d;"><strong>Strategy runs out of money at age ${strategyDepletion.age} (Year: ${strategyDepletion.year})</strong></span>`;
@@ -339,7 +330,6 @@ function calculate() {
 
   if (chart) chart.destroy();
   const ctx = document.getElementById("chart").getContext("2d");
-
   chart = new Chart(ctx, {
     type: "line",
     data: {
@@ -374,5 +364,70 @@ function calculate() {
       }
     }
   });
+
+  if (runMonteCarlo) {
+    runMonteCarloSim(finalStrategy);
+  } else {
+    document.getElementById("mcChart").style.display = "none";
+  }
+}
+       function runMonteCarloSim(startValue) {
+  const trials = 500;
+  const years = 30;
+  const mean = 0.07;
+  const stdev = 0.15;
+
+  let results = [];
+
+  for (let i = 0; i < trials; i++) {
+    let value = startValue;
+    for (let y = 0; y < years; y++) {
+      let randomReturn = mean + stdev * randn_bm();
+      value *= 1 + randomReturn;
+    }
+    results.push(value);
+  }
+
+  results.sort((a, b) => a - b);
+
+  const ctx = document.getElementById("mcChart").getContext("2d");
+  document.getElementById("mcChart").style.display = "block";
+
+  if (mcChart) mcChart.destroy();
+  mcChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: results.map((_, i) => i + 1),
+      datasets: [{
+        label: "Monte Carlo 500 Trials",
+        data: results,
+        borderColor: "#ffa94d",
+        borderWidth: 2,
+        tension: 0.1,
+        fill: true
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: "#ddd" } }
+      },
+      scales: {
+        x: { display: false },
+        y: { ticks: { color: "#aaa" }, grid: { color: "#222" }}
+      }
+    }
+  });
+}
+
+// Random Gaussian for normal distribution
+function randn_bm() {
+  let u = 0, v = 0;
+  while(u === 0) u = Math.random();
+  while(v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 </script>
+</div>
+</body>
+</html> 
+    </div>
