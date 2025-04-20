@@ -4,768 +4,210 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jackson Castillo’s Retirement Strategy Simulator</title>
-  <!-- Google Font for header (tall, modern look) -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    /* ----- Global Styles and Background ----- */
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
-                  url('https://images.unsplash.com/photo-1655347203724-712c9bd05ea6?fm=jpg&q=60&w=3000&fit=max') 
-                  center/cover no-repeat fixed;
-      /* The above is a darkened city skyline image for the skyscraper theme */
-      font-family: sans-serif;
-      color: #FFFFFF;
-    }
     body {
-      /* Use flex to center content vertically (with a min-height to allow scroll on mobile) */
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start; /* align to top (we will scroll if content height exceeds) */
+      font-family: Arial, sans-serif;
+      background: #0d0f14;
+      color: #f0f0f0;
+      padding: 40px;
     }
-    /* Scrollbar styling (for WebKit) to blend with dark theme */
-    body::-webkit-scrollbar {
-      width: 8px;
-    }
-    body::-webkit-scrollbar-track {
-      background: rgba(255,255,255,0.1);
-    }
-    body::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.3);
-      border-radius: 4px;
-    }
-
-    /* ----- Glassmorphic Panel Styles ----- */
-    .panel {
-      background: rgba(255, 255, 255, 0.08);  /* translucent white overlay (very faint) */
-      backdrop-filter: blur(10px);            /* blur the background behind the panel */
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.3);  /* thin light border to define panel edges */
-      border-radius: 10px;
-      padding: 1.5em;
-      margin: 1em;
-      box-shadow: 0 0 20px rgba(0,0,0,0.3);  /* a subtle shadow for depth */
-      width: 90%;
-      max-width: 800px;
-    }
-
-    /* Header panel specifically */
-    .header-panel {
+    h2 {
       text-align: center;
-      padding: 1em 1.5em;
+      color: #7cd6ff;
+      margin-bottom: 20px;
     }
-    .header-panel h1 {
-      font-family: 'Oswald', sans-serif;
-      font-size: 1.8em;
-      letter-spacing: 1px;
-      margin: 0;
-      text-shadow: 0 0 5px rgba(255,255,255,0.2);
-    }
-
-    /* ----- Input Form Styles ----- */
-    .inputs-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1em 1.5em; /* row and column gaps */
-    }
-    /* Two-column layout on larger screens for inputs */
-    @media (min-width: 600px) {
-      .inputs-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
-    label {
-      display: block;
-      font-size: 0.9em;
-      margin-bottom: 0.3em;
-      font-weight: 500;
-    }
-    .input-field {
-      width: 100%;
-      box-sizing: border-box;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 4px;
-      padding: 0.5em;
-      color: #fff;
-      font-size: 0.9em;
-      /* Add a slight shadow inside for depth */
-      box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
-    }
-    .input-field::placeholder {
-      color: rgba(255,255,255,0.6);
-    }
-    /* Make number inputs have no spinners for appearance (optional) */
-    input[type=number]::-webkit-outer-spin-button,
-    input[type=number]::-webkit-inner-spin-button {
-      appearance: none;
-      margin: 0;
-    }
-    input[type=number] {
-      /* a fixed width for small numbers (like age) to align nicely, larger for bigger inputs */
-      min-width: 80px;
-    }
-    /* Range slider specific styling */
-    .slider-container {
-      display: flex;
-      align-items: center;
-      gap: 0.5em;
-    }
-    .slider-container span {
-      font-size: 0.85em;
-    }
-    input[type=range] {
-      flex: 1;
-      appearance: none;
-      height: 4px;
-      background: rgba(255,255,255,0.3);
-      border-radius: 2px;
-      outline: none;
-      cursor: pointer;
-      margin: 0;
-    }
-    input[type=range]::-webkit-slider-thumb {
-      appearance: none;
-      width: 14px;
-      height: 14px;
-      background: #00bcd4; /* thumb color (teal accent) */
-      border: 2px solid #fff;
-      border-radius: 50%;
-      cursor: pointer;
-      box-shadow: 0 0 2px #000;
-      /* Add hover effect on thumb */
-    }
-    input[type=range]::-moz-range-thumb {
-      width: 14px;
-      height: 14px;
-      background: #00bcd4;
-      border: 2px solid #fff;
-      border-radius: 50%;
-      cursor: pointer;
-      box-shadow: 0 0 2px #000;
-    }
-    /* Ensure select dropdowns match style */
-    select.input-field {
-      background: rgba(255,255,255,0.1);
+    input, select {
+      width: 260px;
+      padding: 10px;
+      margin: 10px;
+      font-size: 15px;
+      background: #1e2a38;
+      border: 1px solid #3c506a;
+      border-radius: 6px;
       color: #fff;
     }
-
-    /* ----- Button ----- */
-    .simulate-btn {
-      grid-column: 1 / -1;  /* full width across grid columns */
-      padding: 0.6em 1.2em;
-      font-size: 1em;
-      font-weight: 600;
-      color: #fff;
-      background: #00acc1; /* teal-blue base */
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      margin: 20px;
+      background: linear-gradient(to right, #4e9eff, #6f85ff);
       border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      text-shadow: 0 0 3px rgba(0,0,0,0.5);
-      margin-top: 0.5em;
-      transition: background 0.3s, box-shadow 0.3s;
-    }
-    .simulate-btn:hover {
-      background: #26c6da;
-      box-shadow: 0 0 10px rgba(0,172,193,0.7);
-    }
-    .simulate-btn:active {
-      background: #0097a7;
-    }
-
-    /* ----- Results Panel Styles ----- */
-    .results-panel p {
-      margin: 0.2em 0;
-      font-size: 0.95em;
-    }
-    .results-panel span.value {
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-
-    /* ----- Chart Container ----- */
-    .chart-panel {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-around;
-      align-items: flex-start;
-    }
-    .chart-panel canvas {
-      flex: 1 1 45%;
-      min-width: 280px;
-      max-width: 600px;
-      margin: 1em;
-      /* Give canvas a translucent background so gridlines are slightly visible against page background */
-      background: rgba(255,255,255,0.05);
       border-radius: 8px;
+      color: white;
+      cursor: pointer;
     }
-    /* Ensure charts do not overflow panel on small screens */
-    @media (max-width: 600px) {
-      .chart-panel {
-        flex-direction: column;
-        align-items: center;
-      }
+    .results {
+      margin-top: 30px;
+      font-size: 16px;
+    }
+    canvas {
+      margin-top: 50px;
+      background: #1c1f28;
+      border-radius: 12px;
+      padding: 20px;
     }
   </style>
 </head>
 <body>
+  <h2>Jackson Castillo’s Retirement Strategy Simulator</h2>
 
-  <!-- Header Panel -->
-  <div class="panel header-panel">
-    <h1>Jackson Castillo’s Retirement Strategy Simulator</h1>
-  </div>
+  <label>Initial Investment ($):</label><br>
+  <input type="number" id="principal" value="10000"><br>
 
-  <!-- Input Panel -->
-  <div class="panel">
-    <form id="input-form" class="inputs-grid" onsubmit="event.preventDefault(); runSimulation();">
-      <!-- Age and timeline inputs -->
-      <div>
-        <label for="currentAge">Current Age:</label>
-        <input id="currentAge" class="input-field" type="number" min="0" value="30" required />
-      </div>
-      <div>
-        <label for="retireAge">Retirement Age:</label>
-        <input id="retireAge" class="input-field" type="number" min="0" value="65" required />
-      </div>
-      <div>
-        <label for="endAge">Plan Until Age:</label>
-        <input id="endAge" class="input-field" type="number" min="0" value="95" required />
-      </div>
+  <label>Monthly Contribution ($):</label><br>
+  <input type="number" id="contribution" value="500"><br>
 
-      <!-- Current balances -->
-      <div>
-        <label for="initialInvest">Current Investment Balance ($):</label>
-        <input id="initialInvest" class="input-field" type="number" min="0" value="0" />
-      </div>
-      <div>
-        <label for="initialInsurance">Current Insurance Cash Value ($):</label>
-        <input id="initialInsurance" class="input-field" type="number" min="0" value="0" />
-      </div>
+  <label>Expected Annual Return (%):</label><br>
+  <input type="number" id="rate" value="7"><br>
 
-      <!-- Contribution and withdrawal -->
-      <div>
-        <label for="annualContrib">Annual Contribution ($/yr):</label>
-        <input id="annualContrib" class="input-field" type="number" min="0" value="10000" />
-      </div>
-      <div>
-        <label for="annualWithdraw">Annual Withdrawal in Retirement ($/yr):</label>
-        <input id="annualWithdraw" class="input-field" type="number" min="0" value="40000" />
-      </div>
+  <label>Years Contributing (Before Retirement):</label><br>
+  <input type="number" id="yearsInvested" value="30"><br>
 
-      <!-- Investment returns -->
-      <div>
-        <label for="avgReturn">Avg Investment Return (%/yr):</label>
-        <input id="avgReturn" class="input-field" type="number" step="0.1" value="7" />
-      </div>
-      <div>
-        <label for="volatility">Return Volatility (Std Dev %):</label>
-        <input id="volatility" class="input-field" type="number" step="0.1" value="15" />
-      </div>
+  <label>Years in Retirement:</label><br>
+  <input type="number" id="retirementYears" value="30"><br>
 
-      <!-- Insurance return and strategy split -->
-      <div>
-        <label for="insReturn">Insurance Growth Rate (%/yr):</label>
-        <input id="insReturn" class="input-field" type="number" step="0.1" value="3" />
-      </div>
-      <div>
-        <label>Strategy Split:</label>
-        <div class="slider-container">
-          <input id="splitRange" type="range" min="0" max="100" value="50" />
-          <span id="splitLabel">50% invest / 50% insur</span>
-        </div>
-      </div>
+  <label>Annual Withdrawal During Retirement ($):</label><br>
+  <input type="number" id="retirementWithdrawal" value="60000"><br>
 
-      <!-- Account type and compounding frequency -->
-      <div>
-        <label for="accountType">Account Tax Type:</label>
-        <select id="accountType" class="input-field">
-          <option value="roth">Roth (Tax-Free)</option>
-          <option value="traditional">Traditional (Tax-Deferred)</option>
-          <option value="taxable">Taxable</option>
-        </select>
-      </div>
-      <div>
-        <label for="compoundFreq">Compounding Frequency:</label>
-        <select id="compoundFreq" class="input-field">
-          <option value="annual">Annual</option>
-          <option value="quarterly">Quarterly</option>
-          <option value="monthly" selected>Monthly</option>
-        </select>
-      </div>
+  <label>Strategy Split (% Investment vs. Life Insurance):</label><br>
+  <select id="strategy">
+    <option value="100">100 / 0</option>
+    <option value="80">80 / 20</option>
+    <option value="70">70 / 30</option>
+    <option value="50">50 / 50</option>
+  </select><br>
 
-      <!-- Simulate Button -->
-      <button type="submit" class="simulate-btn">Run Simulation</button>
-    </form>
-  </div>
+  <label>Account Type:</label><br>
+  <select id="accountType">
+    <option value="roth">Roth (Tax-Free)</option>
+    <option value="traditional">Traditional (Taxed on Withdrawal + RMDs)</option>
+    <option value="taxable">Taxable (Capital Gains)</option>
+  </select><br>
 
-  <!-- Results Summary Panel -->
-  <div class="panel results-panel" id="results-panel" style="display:none;">
-    <p>Final Portfolio Value: <span id="finalValue" class="value">$0</span></p>
-    <p>Total Contributions: <span id="totalContrib" class="value">$0</span></p>
-    <p>Net Interest Earned: <span id="interestEarned" class="value">$0</span></p>
-    <p>Total Return: <span id="totalReturn" class="value">0%</span></p>
-  </div>
+  <button onclick="runSimulation()">Run Simulation</button>
 
-  <!-- Charts Panel (contains two canvas elements) -->
-  <div class="panel chart-panel" id="chart-panel" style="display:none;">
-    <canvas id="mainChart"></canvas>
-    <canvas id="mcChart"></canvas>
-  </div>
-
-  <!-- Chart.js library from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.umd.min.js"></script>
-  <script>
-    // ----- Script Logic for Retirement Simulator -----
-
-    // Chart instances (global variables so we can update them)
-    let mainChartInstance, mcChartInstance;
-
-    // Utility: format numbers with commas (and no decimals for large dollars)
-    function formatCurrency(value) {
-      return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
-    }
-    function formatPercent(value) {
-      return value.toFixed(1);
-    }
-
-    // Update the strategy split label when slider moves
-    const splitRange = document.getElementById('splitRange');
-    const splitLabel = document.getElementById('splitLabel');
-    splitRange.addEventListener('input', () => {
-      const val = +splitRange.value;
-      splitLabel.textContent = `${val}% invest / ${100 - val}% insur`;
-    });
-
-    // Core simulation function, runs on "Run Simulation"
+  <div class="results" id="output"></div>
+  <canvas id="chart" width="900" height="400"></canvas>
+    <script>
     function runSimulation() {
-      // Get inputs
-      const currentAge = parseInt(document.getElementById('currentAge').value);
-      const retireAge = parseInt(document.getElementById('retireAge').value);
-      const endAge = parseInt(document.getElementById('endAge').value);
-      const initInvest = parseFloat(document.getElementById('initialInvest').value) || 0;
-      const initIns = parseFloat(document.getElementById('initialInsurance').value) || 0;
-      const annualContrib = parseFloat(document.getElementById('annualContrib').value) || 0;
-      const annualWithdraw = parseFloat(document.getElementById('annualWithdraw').value) || 0;
-      const avgReturn = parseFloat(document.getElementById('avgReturn').value) || 0;
-      const volatility = parseFloat(document.getElementById('volatility').value) || 0;
-      const insReturn = parseFloat(document.getElementById('insReturn').value) || 0;
-      const investPercent = parseInt(document.getElementById('splitRange').value) / 100;  // 0 to 1
-      const accountType = document.getElementById('accountType').value.toLowerCase();
-      const compFreqStr = document.getElementById('compoundFreq').value;
+      const P = parseFloat(document.getElementById("principal").value);
+      const C = parseFloat(document.getElementById("contribution").value);
+      const r = parseFloat(document.getElementById("rate").value) / 100;
+      const contribYears = parseInt(document.getElementById("yearsInvested").value);
+      const retirementYears = parseInt(document.getElementById("retirementYears").value);
+      const withdrawal = parseFloat(document.getElementById("retirementWithdrawal").value);
+      const strategySplit = parseInt(document.getElementById("strategy").value) / 100;
+      const accountType = document.getElementById("accountType").value;
 
-      // Determine compounding frequency in periods per year
-      let periodsPerYear;
-      if (compFreqStr === 'monthly') periodsPerYear = 12;
-      else if (compFreqStr === 'quarterly') periodsPerYear = 4;
-      else periodsPerYear = 1;  // annual
+      const months = (contribYears + retirementYears) * 12;
+      const monthlyRate = r / 12;
+      const monthlyWithdrawal = withdrawal / 12;
+      const rampYears = 10;
 
-      // Validate age inputs (ensure endAge > retireAge >= currentAge)
-      if (endAge <= retireAge) {
-        alert("End age must be greater than retirement age.");
-        return;
-      }
-      if (retireAge < currentAge) {
-        alert("Retirement age must be greater than or equal to current age.");
-        return;
-      }
+      let investBal = P * strategySplit;
+      let insBal = P * (1 - strategySplit);
+      let data = [], labels = [];
 
-      // Prepare arrays to collect yearly balance data for main scenario
-      const totalYears = endAge - currentAge;
-      const ages = [];             // x-axis labels
-      const mainBalances = [];     // combined portfolio value each year (for main scenario)
-      // Initialize starting values
-      let investBal = initInvest;
-      let insBal = initIns;
-      ages.push(currentAge);
-      mainBalances.push(investBal + insBal);
+      let totalContrib = P;
+      let totalWithdrawn = 0;
+      let age = 30;
+      let startYear = 2001;
+      let rmdStartAge = 73;
+      const downYears = [2001, 2002, 2008, 2009, 2011, 2015, 2018, 2020, 2022];
 
-      // Helper: get period interest rate from annual rate
-      const periodRate = (periodsPerYear > 1) ? Math.pow(1 + avgReturn/100, 1/periodsPerYear) - 1 
-                                              : avgReturn/100;
-      const periodRateIns = (periodsPerYear > 1) ? Math.pow(1 + insReturn/100, 1/periodsPerYear) - 1 
-                                                 : insReturn/100;
+      for (let i = 1; i <= months; i++) {
+        const year = startYear + Math.floor(i / 12);
+        const month = i % 12;
+        const isContribPhase = i <= contribYears * 12;
+        const isDownYear = downYears.includes(year);
+        const isRetired = !isContribPhase;
+        const liGrowthRate = (i <= rampYears * 12)
+          ? (0.055 / 12) * (i / (rampYears * 12))
+          : 0.055 / 12;
 
-      // Accumulation phase simulation (year by year to record annual data)
-      for (let age = currentAge; age < retireAge; age++) {
-        // Simulate one year of accumulation for this age
-        for (let p = 0; p < periodsPerYear; p++) {
-          // apply growth for the period
-          investBal *= (1 + periodRate);
-          insBal *= (1 + periodRateIns);
-          // contribution at end of period
-          const perPeriodContrib = annualContrib / periodsPerYear;
-          investBal += perPeriodContrib * investPercent;
-          insBal += perPeriodContrib * (1 - investPercent);
-        }
-        // end of this year (age), record value at end of year
-        ages.push(age + 1);  // age+1 because at end of this year, person is one year older
-        mainBalances.push(investBal + insBal);
-      }
-
-      // Retirement phase simulation (year by year with withdrawals)
-      // We start from retireAge (which is currentAge + years of accumulation)
-      let lifeExpYears = null; // for RMD linear calculation
-      for (let age = retireAge; age < endAge; age++) {
-        // Determine required min distribution if applicable
-        let rmd = 0;
-        if (accountType === 'traditional' && age >= 73) {
-          // Linear life expectancy model: divisor = 100 - age
-          if (investBal > 0) {
-            rmd = investBal / (100 - age);
-          } else {
-            rmd = 0;
-          }
-        }
-        // Determine total withdrawal needed this year
-        let requiredWithdrawal = annualWithdraw;
-        if (rmd > requiredWithdrawal) {
-          requiredWithdrawal = rmd;
-        }
-        // Determine if this year is a downturn for investment (we use average return here, so downturn only if avgReturn is negative which is unlikely.
-        // In deterministic scenario with positive avg, this likely won't trigger. This logic mainly affects Monte Carlo below.)
-        let investDownturn = false;
-        if (avgReturn < 0) {
-          investDownturn = true;
-        }
-        // Calculate how to withdraw: from invest vs ins based on downturn strategy
-        let invWithdraw = 0, insWithdraw = 0;
-        if (investDownturn) {
-          // Market down -> use insurance as buffer
-          if (accountType === 'traditional' && age >= 73 && rmd > 0) {
-            // Must take at least RMD from invest
-            invWithdraw = Math.min(investBal, rmd);
-          } else {
-            invWithdraw = 0;
-          }
-          insWithdraw = requiredWithdrawal - invWithdraw;
-          if (insWithdraw < 0) insWithdraw = 0;
+        if (isContribPhase) {
+          investBal = investBal * (1 + monthlyRate) + C * strategySplit;
+          insBal = insBal * (1 + liGrowthRate) + C * (1 - strategySplit);
+          totalContrib += C;
         } else {
-          // Normal year -> withdraw from investment first
-          invWithdraw = requiredWithdrawal;
-          insWithdraw = 0;
-        }
-        // If insurance cannot cover required insWithdraw, take remainder from invest
-        if (insWithdraw > insBal) {
-          const shortfall = insWithdraw - insBal;
-          insWithdraw = insBal;
-          invWithdraw += shortfall;
-        }
-        // If investment cannot cover required invWithdraw (portfolio depletion scenario), take remainder from insurance if available
-        if (invWithdraw > investBal) {
-          const shortfall = invWithdraw - investBal;
-          invWithdraw = investBal;
-          // (In practice, if both accounts run dry, withdrawal cannot be met. We'll just withdraw everything available.)
-          if (shortfall > 0 && insBal - insWithdraw > 0) {
-            // take additional from insurance if insurance still has some left after initial calc
-            const additional = Math.min(shortfall, insBal - insWithdraw);
-            insWithdraw += additional;
+          investBal *= (1 + monthlyRate);
+          insBal *= (1 + liGrowthRate);
+
+          let withdrawalFromInvest = 0;
+          let withdrawalFromIns = 0;
+
+          if (accountType === "traditional" && age >= rmdStartAge && month === 1) {
+            let rmd = investBal / (100 - age);
+            withdrawalFromInvest = Math.max(rmd, monthlyWithdrawal);
+          } else {
+            withdrawalFromInvest = isDownYear && insBal >= monthlyWithdrawal ? 0 : monthlyWithdrawal;
+            withdrawalFromIns = monthlyWithdrawal - withdrawalFromInvest;
           }
+
+          if (withdrawalFromInvest > investBal) {
+            withdrawalFromIns += withdrawalFromInvest - investBal;
+            withdrawalFromInvest = investBal;
+          }
+          if (withdrawalFromIns > insBal) {
+            withdrawalFromInvest += withdrawalFromIns - insBal;
+            withdrawalFromIns = insBal;
+          }
+
+          investBal -= withdrawalFromInvest;
+          insBal -= withdrawalFromIns;
+
+          totalWithdrawn += (withdrawalFromInvest + withdrawalFromIns);
         }
-        // Deduct the withdrawals at the beginning of the year
-        investBal -= invWithdraw;
-        insBal -= insWithdraw;
-        if (investBal < 0) investBal = 0;
-        if (insBal < 0) insBal = 0;
-        // Apply growth over the year on the remaining balances
-        for (let p = 0; p < periodsPerYear; p++) {
-          investBal *= (1 + periodRate);
-          insBal *= (1 + periodRateIns);
+
+        if (month === 0) {
+          data.push(investBal + insBal);
+          labels.push(`Age ${age++} (${year})`);
         }
-        // Record end-of-year value after withdrawals and growth
-        ages.push(age + 1);
-        mainBalances.push(investBal + insBal);
       }
 
-      // After simulation, calculate summary outputs for main scenario
       const finalValue = investBal + insBal;
-      // Total contributions = annualContrib * years of contribution
-      const yearsContributing = retireAge - currentAge;
-      const totalContrib = annualContrib * yearsContributing;
-      // Total withdrawn = annualWithdraw * years of retirement (may be adjusted by RMD logic though)
-      // Instead of calculating from input, we can derive from simulation data:
-      // totalWithdraw = (total contributions + interest earned) - (final value)
-      const totalWithdraw = (mainBalances[mainBalances.length - 1] + totalContrib) - mainBalances[0];
-      const interestEarned = finalValue + totalWithdraw - totalContrib;
-      const totalReturnPct = (interestEarned / totalContrib) * 100;
+      const netInterest = finalValue + totalWithdrawn - totalContrib;
+      const returnPct = ((netInterest / totalContrib) * 100).toFixed(1);
 
-      // Format the results for display
-      document.getElementById('finalValue').textContent = '$' + formatCurrency(finalValue);
-      document.getElementById('totalContrib').textContent = '$' + formatCurrency(totalContrib);
-      document.getElementById('interestEarned').textContent = 
-        (interestEarned >= 0 ? '$' : '-$') + formatCurrency(Math.abs(interestEarned));
-      document.getElementById('totalReturn').textContent = (totalReturnPct >= 0 ? '' : '-') + formatPercent(Math.abs(totalReturnPct)) + '%';
+      document.getElementById("output").innerHTML = `
+        <p><strong>Final Value:</strong> $${finalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+        <p><strong>Total Contributions:</strong> $${totalContrib.toLocaleString()}</p>
+        <p><strong>Total Withdrawn:</strong> $${totalWithdrawn.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+        <p><strong>Net Interest Earned:</strong> $${netInterest.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+        <p><strong>Total Return:</strong> ${returnPct}%</p>
+      `;
 
-      // Show the results panel if hidden
-      document.getElementById('results-panel').style.display = 'block';
-
-      // ----- Monte Carlo Simulation (500 trials) -----
-      const trials = 500;
-      const totalYearsAll = endAge - currentAge;
-      // Prepare array of arrays to collect balances for each year across trials
-      const distDataByYear = Array.from({ length: totalYearsAll + 1 }, () => []);
-      // We will fill distDataByYear[i] with the combined balance at the end of year i (i=0 is initial) for all trials
-      for (let t = 0; t < trials; t++) {
-        let inv = initInvest;
-        let ins = initIns;
-        // Record initial
-        distDataByYear[0].push(inv + ins);
-        // Simulate each year from currentAge to endAge-1
-        for (let yearIndex = 1; yearIndex <= totalYearsAll; yearIndex++) {
-          const age = currentAge + yearIndex - 1;
-          if (age < retireAge) {
-            // Accumulation year:
-            // Generate a random annual return for investment (normal distribution)
-            const randStdNorm = Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random());
-            let randAnnualReturn = avgReturn/100 + randStdNorm * (volatility/100);
-            // Cap extreme negative returns at -100% (to avoid unrealistic beyond total loss)
-            if (randAnnualReturn < -0.999) randAnnualReturn = -0.999;
-            // Apply one-year return
-            inv *= (1 + randAnnualReturn);
-            ins *= (1 + insReturn/100);
-            // Add contributions at end of year
-            inv += annualContrib * investPercent;
-            ins += annualContrib * (1 - investPercent);
-          } else {
-            // Retirement year:
-            // Determine random return for this year for invest
-            const randStdNorm = Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random());
-            let randAnnualReturn = avgReturn/100 + randStdNorm * (volatility/100);
-            if (randAnnualReturn < -0.999) randAnnualReturn = -0.999;
-            // Calculate RMD if Traditional
-            let rmd = 0;
-            if (accountType === 'traditional' && age >= 73 && inv > 0) {
-              rmd = inv / (100 - age);
+      if (window.chart) window.chart.destroy();
+      const ctx = document.getElementById("chart").getContext("2d");
+      window.chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "Total Portfolio Value",
+            data: data,
+            borderColor: "#4e9eff",
+            borderWidth: 2,
+            fill: false,
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { title: { display: true, text: "Age" }},
+            y: {
+              title: { display: true, text: "Portfolio Value ($)" },
+              beginAtZero: true
             }
-            // Required withdrawal (max of planned vs RMD)
-            let reqWithdraw = annualWithdraw;
-            if (rmd > reqWithdraw) reqWithdraw = rmd;
-            // Determine downturn (if rand return is negative)
-            const downturn = (randAnnualReturn < 0);
-            let invW = 0, insW = 0;
-            if (downturn) {
-              if (accountType === 'traditional' && age >= 73 && rmd > 0) {
-                invW = Math.min(inv, rmd);
-              } else {
-                invW = 0;
-              }
-              insW = reqWithdraw - invW;
-              if (insW < 0) insW = 0;
-            } else {
-              invW = reqWithdraw;
-              insW = 0;
-            }
-            if (insW > ins) {
-              const short = insW - ins;
-              insW = ins;
-              invW += short;
-            }
-            if (invW > inv) {
-              const short = invW - inv;
-              invW = inv;
-              // try taking short from ins if available
-              if (short > 0 && ins - insW > 0) {
-                const addl = Math.min(short, ins - insW);
-                insW += addl;
-              }
-            }
-            // Withdraw at start of year
-            inv -= invW;
-            ins -= insW;
-            if (inv < 0) inv = 0;
-            if (ins < 0) ins = 0;
-            // Apply returns for the year on remaining
-            inv *= (1 + randAnnualReturn);
-            ins *= (1 + insReturn/100);
           }
-          // Record combined balance at end of this year
-          distDataByYear[yearIndex].push(inv + ins);
         }
-      }
-      // Compute percentile statistics for each year across trials
-      const medianData = [];
-      const p10Data = [];
-      const p90Data = [];
-      for (let yearIndex = 0; yearIndex <= totalYearsAll; yearIndex++) {
-        const values = distDataByYear[yearIndex];
-        values.sort((a,b) => a - b);
-        const n = values.length;
-        // 10th percentile (lowest 10%)
-        const idx10 = Math.floor(0.10 * n);
-        const idx90 = Math.floor(0.90 * n);
-        const idx50 = Math.floor(0.50 * n);
-        // Use average of two middle values for median if even count
-        let medianVal;
-        if (n % 2 === 0) {
-          medianVal = (values[idx50] + values[idx50 - 1]) / 2;
-        } else {
-          medianVal = values[idx50];
-        }
-        const p10Val = values[idx10];
-        const p90Val = values[idx90];
-        medianData.push(medianVal);
-        p10Data.push(p10Val);
-        p90Data.push(p90Val);
-      }
-
-      // ----- Render or Update Charts -----
-      const labels = ages;  // use ages array as labels (from currentAge to endAge)
-      // Create or update the main chart
-      if (mainChartInstance) {
-        // Update existing chart data
-        mainChartInstance.data.labels = labels;
-        mainChartInstance.data.datasets[0].data = mainBalances.slice(0, retireAge - currentAge + 1);
-        mainChartInstance.data.datasets[1].data = mainBalances.slice(retireAge - currentAge);
-        mainChartInstance.update();
-      } else {
-        // Initialize main portfolio chart
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        mainChartInstance = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: 'Accumulation (Pre-Retirement)',
-                data: mainBalances.slice(0, retireAge - currentAge + 1),
-                borderColor: '#00e676',    // bright green line for growth phase
-                borderWidth: 2.5,
-                fill: false,
-                tension: 0.1
-              },
-              {
-                label: 'Withdrawal (Retirement)',
-                data: mainBalances.slice(retireAge - currentAge),
-                borderColor: '#ffd54f',    // amber line for drawdown phase
-                borderDash: [6, 3],
-                borderWidth: 2.5,
-                fill: false,
-                tension: 0.1
-              }
-            ]
-          },
-          options: {
-            interaction: { mode: 'index', intersect: false },
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              x: {
-                title: { display: true, text: 'Age' },
-                grid: { color: 'rgba(255,255,255,0.1)' },
-                ticks: { color: '#ccc' }
-              },
-              y: {
-                title: { display: true, text: 'Portfolio Value ($)' },
-                grid: { color: 'rgba(255,255,255,0.1)' },
-                ticks: { color: '#ccc', callback: value => '$' + (value/1000) + 'k' }
-              }
-            },
-            plugins: {
-              legend: {
-                labels: { color: '#fff' }
-              },
-              tooltip: {
-                mode: 'index',
-                callbacks: {
-                  label: function(ctx) {
-                    const val = ctx.parsed.y;
-                    return `${ctx.dataset.label}: $${val.toLocaleString('en-US', {maximumFractionDigits:0})}`;
-                  }
-                }
-              }
-            }
-          }
-        });
-      }
-
-      // Create or update the Monte Carlo results chart
-      if (mcChartInstance) {
-        mcChartInstance.data.labels = labels;
-        // We prepared medianData, p10Data, p90Data arrays
-        mcChartInstance.data.datasets[0].data = p10Data;
-        mcChartInstance.data.datasets[1].data = p90Data;
-        mcChartInstance.data.datasets[2].data = medianData;
-        mcChartInstance.update();
-      } else {
-        const ctx2 = document.getElementById('mcChart').getContext('2d');
-        mcChartInstance = new Chart(ctx2, {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: '10th Percentile',
-                data: p10Data,
-                borderColor: 'rgba(0,0,0,0)',  // no visible line
-                pointRadius: 0,
-                fill: false
-              },
-              {
-                label: '10%-90% Outcome Range',
-                data: p90Data,
-                borderColor: 'rgba(0,0,0,0)',  // no line stroke
-                backgroundColor: 'rgba(255,255,255,0.2)',  // translucent white fill
-                pointRadius: 0,
-                fill: {
-                  target: 0,  // fill to dataset index 0 (the 10th percentile line)
-                  above: 'rgba(255,255,255,0.2)',   // fill area above p10 (between p10 and p90)
-                  below: 'rgba(255,255,255,0.2)'
-                }
-              },
-              {
-                label: 'Median Outcome',
-                data: medianData,
-                borderColor: '#ffffff',
-                borderDash: [4, 3],
-                borderWidth: 2,
-                pointRadius: 0,
-                fill: false
-              }
-            ]
-          },
-          options: {
-            interaction: { mode: 'index', intersect: false },
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              x: {
-                title: { display: true, text: 'Age' },
-                grid: { color: 'rgba(255,255,255,0.1)' },
-                ticks: { color: '#ccc' }
-              },
-              y: {
-                title: { display: true, text: 'Portfolio Value ($)' },
-                grid: { color: 'rgba(255,255,255,0.1)' },
-                ticks: { color: '#ccc', callback: value => '$' + (value/1000) + 'k' }
-              }
-            },
-            plugins: {
-              legend: {
-                labels: { color: '#fff' }
-              },
-              tooltip: {
-                mode: 'index',
-                callbacks: {
-                  label: function(ctx) {
-                    const datasetLabel = ctx.dataset.label;
-                    const val = ctx.parsed.y;
-                    return `${datasetLabel}: $${val.toLocaleString('en-US', {maximumFractionDigits:0})}`;
-                  }
-                }
-              }
-            }
-          }
-        });
-      }
-
-      // Finally, ensure the chart panel is displayed
-      document.getElementById('chart-panel').style.display = 'flex';
+      });
     }
-
-    // Run a default simulation on load to populate charts with initial values
-    runSimulation();
   </script>
+    <!-- Monte Carlo placeholder (optional enhancement) -->
+  <!-- To implement: runMonteCarloSim() and chart to show percentile bands -->
+
 </body>
 </html>
