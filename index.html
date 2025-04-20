@@ -261,18 +261,23 @@ function calculate() {
   const totalGrowthStrategy = finalStrategy - totalContribStrategy;
   const totalGrowthBase = finalBaseline - totalContribBase;
 
-  document.getElementById("output").innerHTML = `
-    <strong>Final Strategy Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalStrategy.toLocaleString()}<br>
-    <strong>Total Contributions:</strong> $${totalContribStrategy.toLocaleString()}<br>
-    <strong>Total Interest:</strong> $${totalGrowthStrategy.toLocaleString()}<br><br>
+  const strategyReturnPercent = ((totalGrowthStrategy / totalContribStrategy) * 100).toFixed(1);
+const baseReturnPercent = ((totalGrowthBase / totalContribBase) * 100).toFixed(1);
 
-    <strong>Baseline Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalBaseline.toLocaleString()}<br>
-    <strong>Total Contributions:</strong> $${totalContribBase.toLocaleString()}<br>
-    <strong>Total Interest:</strong> $${totalGrowthBase.toLocaleString()}<br><br>
+document.getElementById("output").innerHTML = `
+  <strong>Final Strategy Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalStrategy.toLocaleString()}<br>
+  <strong>Total Contributions:</strong> $${totalContribStrategy.toLocaleString()}<br>
+  <strong>Total Interest Earned:</strong> $${totalGrowthStrategy.toLocaleString()}<br>
+  <strong>Total Return:</strong> ${strategyReturnPercent}%<br><br>
 
-    ${strategyDepletedAge ? `<span class="red"><strong>Strategy runs out of money at age ${strategyDepletedAge}</strong></span><br>` : ""}
-    ${baseDepletedAge ? `<span class="red"><strong>Baseline runs out of money at age ${baseDepletedAge}</strong></span><br>` : ""}
-  `;
+  <strong>Baseline Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalBaseline.toLocaleString()}<br>
+  <strong>Total Contributions:</strong> $${totalContribBase.toLocaleString()}<br>
+  <strong>Total Interest Earned:</strong> $${totalGrowthBase.toLocaleString()}<br>
+  <strong>Total Return:</strong> ${baseReturnPercent}%<br><br>
+
+  ${strategyDepletedAge ? `<span class="red"><strong>Strategy runs out of money at age ${strategyDepletedAge}</strong></span><br>` : ""}
+  ${baseDepletedAge ? `<span class="red"><strong>Baseline runs out of money at age ${baseDepletedAge}</strong></span><br>` : ""}
+`;
 
   if (chart) chart.destroy();
   const ctx = document.getElementById("chart").getContext("2d");
