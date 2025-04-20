@@ -1,0 +1,128 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jackson Castillo’s Retirement Strategy Simulator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0d0f14; color: #f0f0f0; padding: 40px; }
+    h2 { text-align: center; color: #7cd6ff; margin-bottom: 20px; }
+    input, select { width: 260px; padding: 10px; margin: 10px; font-size: 15px; background: #1e2a38; border: 1px solid #3c506a; border-radius: 6px; color: #fff; }
+    button { padding: 12px 20px; font-size: 16px; margin: 20px; background: linear-gradient(to right, #4e9eff, #6f85ff); border: none; border-radius: 8px; color: white; cursor: pointer; }
+    .results { margin-top: 30px; font-size: 16px; }
+    canvas { margin-top: 40px; background: #1c1f28; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <h2>Jackson Castillo’s Retirement Strategy Simulator</h2>
+
+  <label>Initial Investment ($):</label><br>
+  <input type="number" id="principal" value="10000" required><br>
+
+  <label>Monthly Contribution ($):</label><br>
+  <input type="number" id="contribution" value="500" required><br>
+
+  <label>Expected Annual Return (%):</label><br>
+  <input type="number" id="rate" value="7" required><br>
+
+  <label>Years Contributing (Before Retirement):</label><br>
+  <input type="number" id="yearsInvested" value="30" required><br>
+
+  <label>Years in Retirement:</label><br>
+  <input type="number" id="retirementYears" value="30" required><br>
+
+  <label>Annual Withdrawal During Retirement ($):</label><br>
+  <input type="number" id="retirementWithdrawal" value="60000" required><br>
+
+  <label>Strategy Split (% Investment vs. Life Insurance):</label><br>
+  <select id="strategy">
+    <option value="100">100 / 0</option>
+    <option value="80">80 / 20</option>
+    <option value="70">70 / 30</option>
+    <option value="50">50 / 50</option>
+  </select><br>
+
+  <label>Account Type:</label><br>
+  <select id="accountType">
+    <option value="roth">Roth (Tax-Free)</option>
+    <option value="traditional">Traditional (Taxed on Withdrawal + RMDs)</option>
+    <option value="taxable">Taxable (Capital Gains)</option>
+  </select><br>
+
+  <button onclick="runSimulation()">Run Simulation</button>
+
+  <div class="results" id="output"></div>
+  <canvas id="chart" width="900" height="400"></canvas>
+
+  <script>
+    function runSimulation() {
+      const P = parseFloat(document.getElementById("principal").value);
+      const C = parseFloat(document.getElementById("contribution").value);
+      const r = parseFloat(document.getElementById("rate").value) / 100;
+      const contribYears = parseInt(document.getElementById("yearsInvested").value);
+      const retirementYears = parseInt(document.getElementById("retirementYears").value);
+      const withdrawal = parseFloat(document.getElementById("retirementWithdrawal").value);
+      const strategySplit = parseInt(document.getElementById("strategy").value) / 100;
+
+      if ([P, C, r, contribYears, retirementYears, withdrawal].some(val => isNaN(val))) {
+        alert("Please fill in all fields with valid numbers.");
+        return;
+      }
+
+      const totalMonths = (contribYears + retirementYears) * 12;
+      const monthlyRate = r / 12;
+      const monthlyWithdrawal = withdrawal / 12;
+
+      let investBal = P * strategySplit;
+      let insBal = P * (1 - strategySplit);
+      let data = [], labels = [];
+      let age = 30;
+
+      for (let i = 1; i <= totalMonths; i++) {
+        if (i <= contribYears * 12) {
+          investBal = investBal * (1 + monthlyRate) + C * strategySplit;
+          insBal = insBal * (1 + monthlyRate) + C * (1 - strategySplit);
+        } else {
+          investBal = (investBal - monthlyWithdrawal * strategySplit) * (1 + monthlyRate);
+          insBal = (insBal - monthlyWithdrawal * (1 - strategySplit)) * (1 + monthlyRate);
+        }
+
+        if (i % 12 === 0) {
+          data.push(investBal + insBal);
+          labels.push(`Age ${age++}`);
+        }
+      }
+
+      const ctx = document.getElementById("chart").getContext("2d");
+      if (window.chart) window.chart.destroy();
+      window.chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "Portfolio Value",
+            data: data,
+            borderColor: "#4e9eff",
+            borderWidth: 2,
+            fill: false,
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { title: { display: true, text: "Age" }},
+            y: { title: { display: true, text: "Portfolio Value ($)" }, beginAtZero: true }
+          }
+        }
+      });
+
+      document.getElementById("output").innerHTML = `
+        <p><strong>Ending Portfolio Value:</strong> $${(investBal + insBal).toLocaleString()}</p>
+      `;
+    }
+  </script>
+</body>
+</html>
