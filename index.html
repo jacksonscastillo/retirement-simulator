@@ -186,104 +186,99 @@ function calculate() {
   const retireAge = parseInt(document.getElementById("retireAge").value) || 65;
   const endAge = parseInt(document.getElementById("endAge").value) || 95;
   const accountType = document.getElementById("accountType").value;
-  const strategy = parseInt(document.getElementById("strategy").value) || 100;
+  const strategyPercent = parseInt(document.getElementById("strategy").value) || 100;
   const growthRate = parseFloat(document.getElementById("rate").value) / 100 || 0.07;
   const taxRate = parseFloat(document.getElementById("taxRate").value) / 100 || 0.25;
   const showLifeExp = document.getElementById("showLifeExp").checked;
 
-  const investmentWeight = strategy / 100;
-  const insuranceWeight = 1 - investmentWeight;
-
-  let investBal = principal * investmentWeight;
-  let liBal = principal * insuranceWeight;
-  let baseBal = principal;
-
   const startAge = 25;
   const totalYears = endAge - startAge;
 
-  let investData = [], baseData = [], labels = [];
-  let strategyValueAtRetirement = 0, baseValueAtRetirement = 0;
-  let strategyDepletion = null, baselineDepletion = null;
+  const investWeight = strategyPercent / 100;
+  const liWeight = 1 - investWeight;
+
+  let investBal = principal * investWeight;
+  let liBal = principal * liWeight;
+  let baseBal = principal;
+
+  const investData = [], baseData = [], labels = [];
+  let strategyDepletedAge = null;
+  let baseDepletedAge = null;
+  let valueAtRetirement = 0, baseAtRetirement = 0;
 
   for (let i = 0; i <= totalYears; i++) {
     const age = startAge + i;
-    const isContributing = age < retireAge && i < contribYears;
-    const isRetired = age >= retireAge;
+    const contributing = age < retireAge && i < contribYears;
+    const retired = age >= retireAge;
 
-    const contribution = isContributing ? annualContribution : 0;
-    const withdrawal = isRetired ? annualWithdrawal : 0;
+    const contrib = contributing ? annualContribution : 0;
+    const withdrawal = retired ? (accountType === "roth" ? annualWithdrawal : annualWithdrawal / (1 - taxRate)) : 0;
 
-    // Add contributions before growth
-    investBal += contribution * investmentWeight;
-    liBal += contribution * insuranceWeight;
-    baseBal += contribution;
+    // Add contributions
+    investBal += contrib * investWeight;
+    liBal += contrib * liWeight;
+    baseBal += contrib;
 
-    // Apply annual growth
+    // Apply growth
     investBal *= (1 + growthRate);
     liBal *= (1 + (age - startAge >= 10 ? 0.053 : 0.053 * ((age - startAge) / 10)));
     baseBal *= (1 + growthRate);
 
-    // Apply retirement withdrawals after growth
-    if (isRetired) {
-      const taxedWithdrawal = accountType === "roth" ? withdrawal : withdrawal / (1 - taxRate);
-
-      // Strategy drawdown logic: pull from insurance first
-      if (liBal >= taxedWithdrawal) {
-        liBal -= taxedWithdrawal;
+    // Apply withdrawals
+    if (retired) {
+      if (liBal >= withdrawal) {
+        liBal -= withdrawal;
       } else {
-        const remainder = taxedWithdrawal - liBal;
+        const remainder = withdrawal - liBal;
         liBal = 0;
         investBal = Math.max(0, investBal - remainder);
       }
 
-      // Baseline drawdown
-      const baselineWithdrawal = accountType === "roth" ? withdrawal : withdrawal / (1 - taxRate);
-      baseBal = Math.max(0, baseBal - baselineWithdrawal);
+      baseBal = Math.max(0, baseBal - withdrawal);
     }
 
-    // Track strategy and baseline values
     investData.push(investBal + liBal);
     baseData.push(baseBal);
     labels.push(`Age ${age}`);
 
-    // Record depletion if balance hits 0
-    if (!strategyDepletion && investBal + liBal <= 0) strategyDepletion = age;
-    if (!baselineDepletion && baseBal <= 0) baselineDepletion = age;
+    if (investBal + liBal <= 0 && !strategyDepletedAge) strategyDepletedAge = age;
+    if (baseBal <= 0 && !baseDepletedAge) baseDepletedAge = age;
 
     if (age === retireAge) {
-      strategyValueAtRetirement = investBal + liBal;
-      baseValueAtRetirement = baseBal;
+      valueAtRetirement = investBal + liBal;
+      baseAtRetirement = baseBal;
     }
   }
 
-  const strategyFinal = showLifeExp ? investData[investData.length - 1] : strategyValueAtRetirement;
-  const baselineFinal = showLifeExp ? baseData[baseData.length - 1] : baseValueAtRetirement;
-  const delta = strategyFinal - baselineFinal;
+  const finalStrategy = showLifeExp ? investData[investData.length - 1] : valueAtRetirement;
+  const finalBaseline = showLifeExp ? baseData[baseData.length - 1] : baseAtRetirement;
+  const delta = finalStrategy - finalBaseline;
 
   document.getElementById("output").innerHTML = `
-    <strong>Strategy Value (${showLifeExp ? 'at Life Expectancy' : 'at Retirement'}):</strong> $${strategyFinal.toLocaleString()}<br>
-    <strong>Baseline Value (${showLifeExp ? 'at Life Expectancy' : 'at Retirement'}):</strong> $${baselineFinal.toLocaleString()}<br>
-    <strong>Advantage:</strong> ${delta >= 0 ? '+' : '-'}$${Math.abs(delta).toLocaleString()}
-    ${strategyDepletion ? `<br><span class="red">Strategy runs out of money at age ${strategyDepletion}</span>` : ''}
-    ${baselineDepletion ? `<br><span class="red">Baseline runs out of money at age ${baselineDepletion}</span>` : ''}
+    <strong>Strategy Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalStrategy.toLocaleString()}<br>
+    <strong>Baseline Value (${showLifeExp ? "at Life Expectancy" : "at Retirement"}):</strong> $${finalBaseline.toLocaleString()}<br>
+    <strong>Difference:</strong> ${delta >= 0 ? "+" : "-"}$${Math.abs(delta).toLocaleString()}
+    ${strategyDepletedAge ? `<br><span class="red">Strategy runs out at age ${strategyDepletedAge}</span>` : ""}
+    ${baseDepletedAge ? `<br><span class="red">Baseline runs out at age ${baseDepletedAge}</span>` : ""}
   `;
 
   // Draw chart
   if (chart) chart.destroy();
-  chart = new Chart(document.getElementById("chart").getContext("2d"), {
+  const ctx = document.getElementById("chart").getContext("2d");
+  chart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: labels,
       datasets: [
         {
-          label: "Strategy: Investment + Insurance",
+          label: "Strategy (Investment + Insurance)",
           data: investData,
           borderColor: "#64e291",
           borderWidth: 2,
           fill: false
         },
         {
-          label: "Baseline: Investment Only",
+          label: "Baseline (Investment Only)",
           data: baseData,
           borderColor: "#4e9eff",
           borderWidth: 2,
@@ -306,13 +301,6 @@ function calculate() {
       }
     }
   });
-}
-
-  if (runMonteCarlo) {
-    runMonteCarloSim(finalStrategy);
-  } else {
-    document.getElementById("mcChart").style.display = "none";
-  }
 }
        function runMonteCarloSim(startValue) {
   const trials = 500;
